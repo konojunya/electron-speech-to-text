@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>speech to text</title>
+  </head>
+  <body>
+    <button id="start">start</button>
+    <button id="stop">stop</button>
+    <div class="sound-clips"></div>
+    <script>
+      function arrayBufferToBase64(buffer) {
+        let binary = "";
+        let bytes = new Float32Array(buffer);
+        let len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+      }
+
+      var soundClips = document.querySelector(".sound-clips");
+      let mediaRecorder;
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices
+          .getUserMedia({ audio: true })
+          .then(stream => {
+            console.log("media recorder already");
+            mediaRecorder = new MediaRecorder(stream);
+            const record = document.getElementById("start");
+            record.onclick = () => {
+              mediaRecorder.start();
+              console.log(mediaRecorder.state);
+              console.log("recorder started");
+              record.style.background = "red";
+              record.style.color = "black";
+            };
+
+            let chunks = [];
+            mediaRecorder.ondataavailable = e => {
+              chunks.push(e.data);
+            };
+
+            const stop = document.getElementById("stop");
+            stop.onclick = () => {
+              mediaRecorder.stop();
+              console.log(mediaRecorder.state);
+              console.log("recorder stop");
+              record.style.background = "";
+              record.style.color = "";
+            };
+
+            mediaRecorder.onstop = () => {
+              console.log("recorder stopped");
+              const clipName = "sample";
+              const clipContainer = document.createElement("article");
+              const clipLabel = document.createElement("p");
+              const audio = document.createElement("audio");
+              const deleteButton = document.createElement("button");
+
+              audio.setAttribute("controls", "");
+
+              deleteButton.innerHTML = "Delete";
+              clipLabel.innerHTML = clipName;
+              clipContainer.appendChild(audio);
+              clipContainer.appendChild(clipLabel);
+              clipContainer.appendChild(deleteButton);
+              soundClips.appendChild(clipContainer);
+              var blob = new Blob(chunks, { type: "audio/wav; codecs=opus" });
+
+              let reader = new FileReader();
+              reader.onload = function() {
+                let result = new Uint8Array(reader.result);
+                let data = {
+                  config: {
+                    encoding: "LINEAR16",
+                    sampleRateHertz: 16000,
+                    languageCode: "ja-JP"
+                  },
+                  audio: {
+                    content: arrayBufferToBase64(result)
+                  }
+                };
+                console.log("audio send...");
+                fetch(
+                  `https://speech.googleapis.com/v1/speech:recognize?key=${apiKey}`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json; charset=utf-8"
+                    },
+                    body: JSON.stringify(data)
+                  }
+                )
+                  .then(function(response) {
+                    return response.text();
+                  })
+                  .then(function(text) {
+                    let result_json = JSON.parse(text);
+                    //テキストデータ自体はresult_json.results[0].alternatives[0].transcriptに格納
+                    console.log("RESULT: " + text);
+                    console.log(
+                      result_json.results[0].alternatives[0].transcript
+                    );
+                    console.log(data);
+                  });
+              };
+              reader.readAsArrayBuffer(blob);
+
+              chunks = [];
+              var audioURL = window.URL.createObjectURL(blob);
+              audio.src = audioURL;
+              deleteButton.onclick = function(e) {
+                var evtTgt = e.target;
+                evtTgt.parentNode.parentNode.removeChild(evtTgt.parentNode);
+              };
+            };
+          })
+          .catch(err => console.error(err));
+      }
+    </script>
+  </body>
+</html>

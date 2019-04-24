@@ -1,0 +1,14 @@
+{
+  "name": "electron-speech-to-text",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "ssh://git@github.com/konojunya/electron-speech-to-text.git",
+  "author": "konojunya <junya03dance@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^4.1.4"
+  },
+  "scripts": {
+    "build": "electron app.js"
+  }
+}
